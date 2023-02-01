@@ -867,7 +867,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-struct"
+name = "spotiver"
 version = "0.1.0"
 dependencies = [
  "base64",

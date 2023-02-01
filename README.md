@@ -1,6 +1,6 @@
-# sp-struct
+# Spotiver
 
-A program that scrapes your spotify accounts structure for backup purposes.
+Spot(ify) (arch)iver. A program written in Rust that scrapes your spotify account's structure for backup purposes.
 
 ## Authentication
 

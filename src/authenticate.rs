@@ -79,5 +79,6 @@ async fn refresh() -> Result<Token, Box<dyn std::error::Error>> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Token {
     access_token: String,
+    #[serde(rename="expires_in")]
     expires_at: i64,
 }
