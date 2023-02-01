@@ -8,7 +8,7 @@ use std::{
     collections::HashMap,
     time::{Duration, SystemTime},
     fs::File,
-    io::{Write}
+    io::Write
 };
 use csv::Writer;
 use chrono::{DateTime, Utc};
@@ -16,24 +16,23 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use reqwest::header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE};
 
-#[tokio::main]
 // async fn main() -> Result<(), reqwest::Error> {
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token = auth::token().await?;
-    // println!("{}", token);
     playlists(token).await?;
     Ok(())
 }
 
 async fn playlists(token: String) -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = HeaderMap::new();
-    headers.insert(AUTHORIZATION, format!("Bearer {}", token).parse().unwrap());
+    headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
     headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
 
-    let response: Playlists = reqwest::Client::new()
+    let response: Response = reqwest::Client::new()
         .get("https://api.spotify.com/v1/me/playlists")
         .headers(headers)
-        .query(&[("offset", 0), ("limit", 50)])
+        .query(&[("offset", 360), ("limit", 10)])
         .send()
         .await?
         .json()
@@ -53,13 +52,13 @@ async fn playlists(token: String) -> Result<(), Box<dyn std::error::Error>> {
 
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Playlists {
-    href: String,
-    limit: i32,
-    previous: Option<String>,
-    next: String,
-    offset: i32,
-    total: i32,
+struct Response {
+    // href: String,
+    // limit: i32,
+    // previous: Option<String>,
+    next: Option<String>,
+    // offset: i32,
+    // total: i32,
     items: Vec<Playlist>,
 }
 

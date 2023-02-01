@@ -27,7 +27,7 @@ pub async fn token() -> Result<String, Box<dyn std::error::Error>> {
         },
         // File could not be read
         // Refresh token
-        Err(e) => refresh().await?
+        Err(_) => refresh().await?
     };
 
     Ok(token.access_token)
@@ -43,10 +43,10 @@ async fn refresh() -> Result<Token, Box<dyn std::error::Error>> {
     let client_secret = env::var("CLIENT_SECRET")?;
     let refresh_token = env::var("REFRESH_TOKEN")?;
 
-    let secrets = base64::encode(format!("{}:{}", client_id, client_secret));
+    let secrets = base64::encode(format!("{client_id}:{client_secret}"));
 
     let mut headers = HeaderMap::new();
-    headers.insert(AUTHORIZATION, format!("Basic {}", secrets).parse().unwrap());
+    headers.insert(AUTHORIZATION, format!("Basic {secrets}").parse().unwrap());
     headers.insert(CONTENT_TYPE, "application/x-www-form-urlencoded".parse().unwrap());
 
     let mut params = HashMap::new();
@@ -64,7 +64,7 @@ async fn refresh() -> Result<Token, Box<dyn std::error::Error>> {
 
     // Add number of seconds until new token expires to the current UNIX timestamp
     // to create the new expiration timestamp
-    response.expires_at = Utc::now().timestamp() + response.expires_at;
+    response.expires_at += Utc::now().timestamp();
 
     // Save new token to file
     // Overwrite existing file if needed
@@ -79,7 +79,5 @@ async fn refresh() -> Result<Token, Box<dyn std::error::Error>> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Token {
     access_token: String,
-    // token_type: String,
-    #[serde(rename="expires_in")]
     expires_at: i64,
 }
