@@ -134,7 +134,7 @@ impl<'de> Deserialize<'de> for Track {
             };
         }
 
-        let mut h = Outer::deserialize(deserializer)?;
+        let mut h = Outer::deserialize(deserializer).expect("Unsuccessful deserialization in Track");
         let ms: f64 = h.track.duration_ms.as_f64().unwrap();
         let album_img: Image = match h.track.album.images.pop_front() {
             Some(image) => image,

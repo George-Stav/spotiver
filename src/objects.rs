@@ -12,6 +12,7 @@ use crate::objects::{
     track::Track
 };
 use std::{
+    error::Error,
     collections::VecDeque,
     time::{Duration, SystemTime},
     fs::File,
@@ -26,27 +27,21 @@ use reqwest::{
     Client
 };
 
-pub async fn tracks(token: String, id: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn tracks(token: String, id: String) {//-> Result<(), Box<dyn Error>> {
     let mut headers = HeaderMap::new();
     headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
     headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
 
     let client: Client = Client::new();
-    let response2 = client
-        .get(format!("https://api.spotify.com/v1/playlists/{id}/tracks"))
-        .headers(headers.clone())
-        .query(&[("offset", 0), ("limit", 50)])
-        .send().await?;
 
     let mut response: Response<Track> = client
         .get(format!("https://api.spotify.com/v1/playlists/{id}/tracks"))
         .headers(headers.clone())
         .query(&[("offset", 0), ("limit", 50)])
-        .send().await?
-        .json().await?;
+        .send().await.expect("Unsuccessful request")
+        .json().await.expect("Unsuccessful deserialization");
 
-    // println!("{:#?}", response2.text().await?);
-    // println!("{:#?}", response.items);
+    println!("{:?}", response);
 
     // let mut wtr = Writer::from_writer(vec![]);
     // for track in response.items {
@@ -55,10 +50,10 @@ pub async fn tracks(token: String, id: String) -> Result<(), Box<dyn std::error:
     // let mut output = File::create("2nd_coming.csv")?;
     // write!(output, "{}", String::from_utf8(wtr.into_inner()?)?)?;
 
-    Ok(())
+    // Ok(())
 }
 
-pub async fn playlists(token: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn playlists(token: String) -> Result<(), Box<dyn Error>> {
     let mut headers = HeaderMap::new();
     headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
     headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
