@@ -13,7 +13,7 @@ use crate::objects::{
 };
 use std::{
     error::Error,
-    collections::VecDeque,
+    collections::HashSet,
     time::{Duration, SystemTime},
     fs::File,
     io::Write
@@ -27,48 +27,56 @@ use reqwest::{
     Client
 };
 
-pub async fn tracks(token: String, id: String) {//-> Result<(), Box<dyn Error>> {
-    let mut headers = HeaderMap::new();
-    headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
-    headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+pub async fn all_tracks(client: &Client) -> Result<(), Box<dyn Error>> {
+    let mut playlists: Vec<Playlist> = playlists(client).await?;
+    let mut tracks_set: HashSet<Track> = HashSet::new();
 
-    let client: Client = Client::new();
+    for playlist in playlists.iter() {
+        println!("Pulling tracks from: {}", playlist.name);
+        let t: Vec<Track> = match tracks(client, &playlist.id).await {
+            Ok(r) => r,
+            Err(err) => {
+                let t: Vec<Track> = Vec::from_iter(tracks_set);
+                spotiver::save_to_csv(&t, "all-tracks.csv")?;
+                panic!("Encountered an error while fetching tracks for {}\n Exporting results fetched up to this point...", playlist.name);
+            }
+        };
 
-    let mut response: Response<Track> = client
-        .get(format!("https://api.spotify.com/v1/playlists/{id}/tracks"))
-        .headers(headers.clone())
-        .query(&[("offset", 0), ("limit", 50)])
-        .send().await.expect("Unsuccessful request")
-        .json().await.expect("Unsuccessful deserialization");
+        for track in t.iter() {
+            tracks_set.insert(track.clone());
+        }
+    }
 
-    println!("{:?}", response);
+    let t: Vec<Track> = Vec::from_iter(tracks_set);
+    spotiver::save_to_csv(&t, "all-tracks.csv")?;
 
-    // let mut wtr = Writer::from_writer(vec![]);
-    // for track in response.items {
-    //     wtr.serialize(track)?;
-    // }
-    // let mut output = File::create("2nd_coming.csv")?;
-    // write!(output, "{}", String::from_utf8(wtr.into_inner()?)?)?;
-
-    // Ok(())
+    Ok(())
 }
 
-pub async fn playlists(token: String) -> Result<(), Box<dyn Error>> {
-    let mut headers = HeaderMap::new();
-    headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
-    headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+pub async fn tracks(client: &Client, id: &str) -> Result<Vec<Track>, Box<dyn Error>> {
+    let mut response: Response<Track> = client
+        .get(format!("https://api.spotify.com/v1/playlists/{id}/tracks"))
+        .query(&[("offset", 0), ("limit", 50)])
+        .send().await?
+        .json().await?;
+    let mut tracks: Vec<Track> = response.items;
 
-    let client: Client = Client::new();
-    // let mut response2 = client
-    //     .get("https://api.spotify.com/v1/me/playlists")
-    //     .headers(headers.clone())
-    //     .query(&[("offset", 0), ("limit", 50)])
-    //     .send().await?;
-    // println!("{:#?}", response2.text().await?);
+    while let Some(href) = response.next {
+        response = client
+            .get(href)
+            .send().await?
+            .json().await?;
+        tracks.append(&mut response.items);
+    }
 
+    spotiver::save_to_csv(&tracks, "2nd_coming.csv")?;
+
+    Ok(tracks)
+}
+
+pub async fn playlists(client: &Client) -> Result<Vec<Playlist>, Box<dyn Error>> {
     let mut response: Response<Playlist> = client
         .get("https://api.spotify.com/v1/me/playlists")
-        .headers(headers.clone())
         .query(&[("offset", 0), ("limit", 50)])
         .send().await?
         .json().await?;
@@ -77,18 +85,12 @@ pub async fn playlists(token: String) -> Result<(), Box<dyn Error>> {
     while let Some(href) = response.next {
         response = client
             .get(href)
-            .headers(headers.clone())
             .send().await?
             .json().await?;
         playlists.append(&mut response.items);
     }
 
-    let mut wtr = Writer::from_writer(vec![]);
-    for playlist in playlists {
-        wtr.serialize(playlist)?;
-    }
-    let mut output = File::create("test.csv")?;
-    write!(output, "{}", String::from_utf8(wtr.into_inner()?)?)?;
+    spotiver::save_to_csv(&playlists, "nikfisto-playlists.csv")?;
 
-    Ok(())
+    Ok(playlists)
 }

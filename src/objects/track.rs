@@ -1,12 +1,16 @@
 use crate::objects::image::Image;
-use std::collections::VecDeque;
+use std::{
+    collections::VecDeque,
+    cmp::{PartialEq, Eq},
+    hash::{Hash, Hasher}
+};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde_json::{Value, Number};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Track {
-    id: String,
-    title: String,
+    id: Option<String>,
+    title: Option<String>,
     duration: String, // Given in ms; convert to [MM:SS]
     added_at: String,
     is_local: bool,
@@ -15,17 +19,17 @@ pub struct Track {
     track_upc: Option<String>, // Part of ExternalIds object
     contributor_id: String,
     contributor_uri: String,
-    contributor_spotify_url: String, // ExternalUrls
-    album_id: String,
-    album_title: String,
-    album_total_tracks: Number,
+    contributor_spotify_url: Option<String>, // ExternalUrls
+    album_id: Option<String>,
+    album_title: Option<String>,
+    album_total_tracks: Option<Number>,
     // album_available_markets: String, // pipe separated values (e.g. CA|BR|IT)
-    album_spotify_url: String, // ExternalUrls
+    album_spotify_url: Option<String>, // ExternalUrls
     album_img_url: String,
     album_img_width: Option<Number>,
     album_img_height: Option<Number>,
-    album_release_date: String,
-    album_uri: String,
+    album_release_date: Option<String>,
+    album_uri: Option<String>,
     album_isrc: Option<String>, // Part of ExternalIds object
     album_ean: Option<String>, // Part of ExternalIds object
     album_upc: Option<String>, // Part of ExternalIds object
@@ -34,11 +38,12 @@ pub struct Track {
     album_popularity: Option<Number>,
     // album_artists_num: Number,
     // album_artists_name: String, // pipe separated values (e.g. Immortal|Darkthrone)
-    // artists_name: String,
-    // artists_id: String,
+    artists_num: Number,
+    artists_name: String,
+    artists_id: String,
     // artists_genres: String, // pipe separated values (e.g. rock|punk)
-    // artists_popularity: String,
-    // artists_uri: String,
+    // artists_popularity: Option<String>,
+    artists_uri: String,
     // artists_img_url: String,
     // artists_img_width: String,
     // artists_img_height: String,
@@ -46,95 +51,97 @@ pub struct Track {
     // artists_spotify_url: String, // ExternalUrls
     disc_number: Number,
     explicit: bool,
-    // is_playable: bool,
+    is_playable: Option<bool>,
     popularity: Number,
-    preview_url: String,
+    preview_url: Option<String>,
     track_number: Number,
+    uri: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Outer {
+    added_at: String,
+    added_by: Contributor,
+    is_local: bool,
+    track: TrackObject,
+}
+
+#[derive(Debug, Deserialize)]
+struct TrackObject {
+    album: Album,
+    artists: Vec<Artist>,
+    disc_number: Number,
+    duration_ms: Number,
+    explicit: bool,
+    external_ids: Option<ExternalIds>,
+    external_urls: ExternalUrls,
+    id: Option<String>,
+    name: Option<String>,
+    popularity: Number,
+    preview_url: Option<String>,
+    track_number: Number,
+    uri: Option<String>,
+    is_playable: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Album {
+    total_tracks: Option<Number>,
+    // available_markets: Vec<String>,
+    external_urls: ExternalUrls,
+    id: Option<String>,
+    images: VecDeque<Image>,
+    name: Option<String>,
+    release_date: Option<String>,
+    uri: Option<String>,
+    external_ids: Option<ExternalIds>,
+    genres: Option<Vec<String>>,
+    label: Option<String>,
+    popularity: Option<Number>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct Artist {
+    external_urls: ExternalUrls,
+    genres: Option<Vec<String>>,
+    id: Option<String>,
+    images: Option<VecDeque<Image>>,
+    name: Option<String>,
+    popularity: Option<Number>,
+    uri: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Contributor {
+    id: String,
     uri: String,
+    external_urls: ExternalUrls,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct ExternalUrls {
+    spotify: Option<String>
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct ExternalIds {
+    isrc: Option<String>,
+    ean: Option<String>,
+    upc: Option<String>,
 }
 
 impl<'de> Deserialize<'de> for Track {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where D: Deserializer<'de>
     {
-        #[derive(Debug, Deserialize)]
-        struct Outer {
-            added_at: String,
-            added_by: Contributor,
-            is_local: bool,
-            track: TrackObject,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct TrackObject {
-            album: Album,
-            artists: Vec<Artist>,
-            disc_number: Number,
-            duration_ms: Number,
-            explicit: bool,
-            external_ids: Option<ExternalIds>,
-            external_urls: ExternalUrls,
-            id: String,
-            name: String,
-            popularity: Number,
-            preview_url: String,
-            track_number: Number,
-            uri: String,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct Album {
-            total_tracks: Number,
-            // available_markets: Vec<String>,
-            external_urls: ExternalUrls,
-            id: String,
-            images: VecDeque<Image>,
-            name: String,
-            release_date: String,
-            uri: String,
-            external_ids: Option<ExternalIds>,
-            genres: Option<Vec<String>>,
-            label: Option<String>,
-            popularity: Option<Number>,
-        }
-
-        #[derive(Debug, Deserialize, Clone)]
-        struct Artist {
-            external_urls: ExternalUrls,
-            genres: Option<Vec<String>>,
-            id: String,
-            images: Option<VecDeque<Image>>,
-            name: String,
-            popularity: Option<Number>,
-            uri: String,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct Contributor {
-            id: String,
-            uri: String,
-            external_urls: ExternalUrls,
-        }
-
-        #[derive(Debug, Deserialize, Clone)]
-        struct ExternalUrls {
-            spotify: String
-        }
-
-        #[derive(Debug, Deserialize, Default)]
-        struct ExternalIds {
-            isrc: Option<String>,
-            ean: Option<String>,
-            upc: Option<String>,
-        }
-
         macro_rules! artist_concat {
             ($artists:expr, $var:ident) => {
-                $artists.iter().map(|artist| artist.$var.to_string()).collect::<Vec<String>>().join("|")
+                $artists.iter().filter_map(|artist| artist.$var.clone()).collect::<Vec<String>>().join("|")
             };
         }
 
-        let mut h = Outer::deserialize(deserializer).expect("Unsuccessful deserialization in Track");
+        // let mut h = Outer::deserialize(deserializer).expect("Unsuccessful deserialization in Track");
+        let mut h = Outer::deserialize(deserializer)?;
         let ms: f64 = h.track.duration_ms.as_f64().unwrap();
         let album_img: Image = match h.track.album.images.pop_front() {
             Some(image) => image,
@@ -142,7 +149,6 @@ impl<'de> Deserialize<'de> for Track {
         };
         let track_ext_ids = h.track.external_ids.unwrap_or_default();
         let album_ext_ids = h.track.album.external_ids.unwrap_or_default();
-        let mut artists: Vec<Artist> = h.track.artists.clone();
 
         Ok(Track {
             // TODO: Deal with nested Images
@@ -175,12 +181,12 @@ impl<'de> Deserialize<'de> for Track {
             album_popularity: h.track.album.popularity, // {Some(p) => p, None => Number::from(0)},
             // album_artists_num: Number,
             // album_artists_name: String, // pipe separated values (e.g. Immortal|Darkthrone)
-            // artists_name: artists.clone().iter().map(|artist| artist.name).collect::<Vec<String>>().join("|"),
-            // artists_name: artist_concat!(artists.clone(), name),
-            // artists_id: artist_concat!(artists, id),
+            artists_num: Number::from(h.track.artists.len()),
+            artists_name: artist_concat!(h.track.artists, name),
+            artists_id: artist_concat!(h.track.artists, id),
             // artist_genres: artist_concat!(h.track.artists, genres), // pipe separated values (e.g. rock|punk)
             // artists_popularity: artist_concat!(h.track.artists, popularity),
-            // artists_uri: artist_concat!(h.track.artists, name),
+            artists_uri: artist_concat!(h.track.artists, name),
             // artists_img_url: artist_concat!(h.track.artists, name),
             // artists_img_width: artist_concat!(h.track.artists, name),
             // artists_img_height: artist_concat!(h.track.artists, name),
@@ -188,11 +194,24 @@ impl<'de> Deserialize<'de> for Track {
             // artists_spotify_url: artist_concat!(h.track.artists, name), // ExternalUrls
             disc_number: h.track.disc_number,
             explicit: h.track.explicit,
-            // is_playable: bool,
+            is_playable: h.track.is_playable,
             popularity: h.track.popularity,
             preview_url: h.track.preview_url,
             track_number: h.track.track_number,
             uri: h.track.uri,
         })
+    }
+}
+
+impl PartialEq for Track {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+impl Eq for Track {}
+
+impl Hash for Track {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }

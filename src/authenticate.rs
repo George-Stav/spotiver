@@ -11,7 +11,8 @@ pub async fn token() -> Result<String, Box<dyn Error>> {
     // Attempts to read it from file and refreshes it if one of the following conditions is met:
     //      - File could not be read properly (e.g. NotFound)
     //      - Key in file has expired
-    let token: Token = match std::fs::read_to_string("../token.json") {
+    let project_root = dotenv::var("PROJECT_ROOT").expect("PROJECT_ROOT should be present in .env");
+    let token: Token = match std::fs::read_to_string(format!("{project_root}/data/token.json")) {
         Ok(s) => { // File was read successfully
             let temp_token: Token = serde_json::from_str::<Token>(&s)?;
             let now = Utc::now().timestamp();
@@ -37,6 +38,7 @@ async fn refresh() -> Result<Token, Box<dyn Error>> {
     // Code derived from Spotify Web API docs:
     // https://developer.spotify.com/documentation/general/guides/authorization/code-flow
 
+    let project_root = dotenv::var("PROJECT_ROOT").expect("PROJECT_ROOT should be present in .env");
     let client_id = dotenv::var("CLIENT_ID").expect("CLIENT_ID should be present in .env");
     let client_secret = dotenv::var("CLIENT_SECRET").expect("CLIENT_SECRET should be present in .env");
     let refresh_token = dotenv::var("REFRESH_TOKEN").expect("REFRESH_TOKEN should be present in .env");
@@ -65,7 +67,7 @@ async fn refresh() -> Result<Token, Box<dyn Error>> {
     // Save new token to file
     // Overwrite existing file if needed
     std::fs::write(
-        "../token.json",
+        format!("{project_root}/data/token.json"),
         serde_json::to_string_pretty(&response).unwrap()
     ).expect("Unable to write file");
 

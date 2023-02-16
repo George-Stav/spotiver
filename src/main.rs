@@ -20,11 +20,18 @@ use reqwest::{
     Client
 };
 
-// async fn main() -> Result<(), reqwest::Error> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token = auth::token().await?;
-    objects::tracks(token, "4ZBu3Yz2pzW5zY7n1dRZXg".to_string()).await; // melodic good metal "33VnWGWkL4o26g6Z2ETH9X"
-    // objects::playlists(token).await
+    let mut headers = HeaderMap::new();
+    headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
+    headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+
+    let client = Client::builder()
+        .default_headers(headers)
+        .build()?;
+
+    // objects::tracks(&client, "4ZBu3Yz2pzW5zY7n1dRZXg").await; // melodic good metal "33VnWGWkL4o26g6Z2ETH9X"
+    objects::all_tracks(&client).await;
     Ok(())
 }

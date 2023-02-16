@@ -5,8 +5,8 @@ use serde_json::{Value, Number};
 
 #[derive(Debug, Serialize)]
 pub struct Playlist {
-    id: String,
-    name: String,
+    pub id: String,
+    pub name: String,
     description: String,
     collaborative: bool,
     spotify_url: String,
