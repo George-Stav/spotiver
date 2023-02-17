@@ -27,18 +27,38 @@ use reqwest::{
     Client
 };
 
+pub async fn file_per_playlist(client: &Client) -> Result<(), Box<dyn Error>> {
+    let mut playlists: Vec<Playlist> = playlists(client).await?;
+
+    for playlist in playlists.iter() {
+        println!("Pulling tracks from: {}", playlist.name);
+        match tracks(client, &playlist.id).await {
+            Ok(tracks) => {
+                spotiver::save_to_csv(&tracks, &format!("playlists/{}.csv", playlist.name));
+            },
+            Err(err) => {
+                println!("Encountered an error while fetching tracks for {}\n {}", playlist.name, err);
+            }
+        };
+    }
+
+    Ok(())
+}
+
 pub async fn all_tracks(client: &Client) -> Result<(), Box<dyn Error>> {
     let mut playlists: Vec<Playlist> = playlists(client).await?;
     let mut tracks_set: HashSet<Track> = HashSet::new();
 
     for playlist in playlists.iter() {
         println!("Pulling tracks from: {}", playlist.name);
+        // let t: Vec<Track> = tracks(client, &playlist.id).await?;
         let t: Vec<Track> = match tracks(client, &playlist.id).await {
             Ok(r) => r,
             Err(err) => {
-                let t: Vec<Track> = Vec::from_iter(tracks_set);
-                spotiver::save_to_csv(&t, "all-tracks.csv")?;
-                panic!("Encountered an error while fetching tracks for {}\n Exporting results fetched up to this point...", playlist.name);
+                // let t: Vec<Track> = Vec::from_iter(tracks_set);
+                // spotiver::save_to_csv(&t, "all-tracks.csv")?;
+                println!("Encountered an error while fetching tracks for {}\n {}", playlist.name, err);
+                Vec::new()
             }
         };
 

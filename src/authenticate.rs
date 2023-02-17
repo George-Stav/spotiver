@@ -4,7 +4,10 @@ use std::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize, de::Deserializer};
-use reqwest::header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::{
+    header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE},
+    Client
+};
 
 pub async fn token() -> Result<String, Box<dyn Error>> {
     // Public facing function that returns the access token in String format.
@@ -53,7 +56,7 @@ async fn refresh() -> Result<Token, Box<dyn Error>> {
     params.insert("grant_type", "refresh_token");
     params.insert("refresh_token", &refresh_token);
 
-    let mut response: Token = reqwest::Client::new()
+    let mut token: Token = Client::new()
         .post("https://accounts.spotify.com/api/token")
         .headers(headers)
         .form(&params)
@@ -62,19 +65,19 @@ async fn refresh() -> Result<Token, Box<dyn Error>> {
 
     // Add number of seconds until new token expires to the current UNIX timestamp
     // to create the new expiration timestamp
-    response.expires_at += Utc::now().timestamp();
+    token.expires_at += Utc::now().timestamp();
 
     // Save new token to file
     // Overwrite existing file if needed
     std::fs::write(
         format!("{project_root}/data/token.json"),
-        serde_json::to_string_pretty(&response).unwrap()
+        serde_json::to_string_pretty(&token).unwrap()
     ).expect("Unable to write file");
 
-    Ok(response)
+    Ok(token)
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 struct Token {
     access_token: String,
     #[serde(rename="expires_in")]

@@ -33,9 +33,9 @@ pub struct Track {
     album_isrc: Option<String>, // Part of ExternalIds object
     album_ean: Option<String>, // Part of ExternalIds object
     album_upc: Option<String>, // Part of ExternalIds object
-    album_genres: String, // pipe separated values (e.g. rock|punk)
-    album_label: Option<String>,
-    album_popularity: Option<Number>,
+    // album_genres: String, // pipe separated values (e.g. rock|punk)
+    // album_label: Option<String>,
+    // album_popularity: Option<Number>,
     // album_artists_num: Number,
     // album_artists_name: String, // pipe separated values (e.g. Immortal|Darkthrone)
     artists_num: Number,
@@ -51,7 +51,7 @@ pub struct Track {
     // artists_spotify_url: String, // ExternalUrls
     disc_number: Number,
     explicit: bool,
-    is_playable: Option<bool>,
+    // is_playable: Option<bool>,
     popularity: Number,
     preview_url: Option<String>,
     track_number: Number,
@@ -63,7 +63,7 @@ struct Outer {
     added_at: String,
     added_by: Contributor,
     is_local: bool,
-    track: TrackObject,
+    track: Option<TrackObject>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,10 +81,30 @@ struct TrackObject {
     preview_url: Option<String>,
     track_number: Number,
     uri: Option<String>,
-    is_playable: Option<bool>,
+    // is_playable: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+impl Default for TrackObject {
+    fn default() -> Self {
+        TrackObject {
+            album: Album::default(),
+            artists: Vec::new(),
+            disc_number: Number::from(0),
+            duration_ms: Number::from(0),
+            explicit: false,
+            external_ids: Some(ExternalIds::default()),
+            external_urls: ExternalUrls::default(),
+            id: None,
+            name: None,
+            popularity: Number::from(0),
+            preview_url: None,
+            track_number: Number::from(0),
+            uri: None
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Default)]
 struct Album {
     total_tracks: Option<Number>,
     // available_markets: Vec<String>,
@@ -95,9 +115,9 @@ struct Album {
     release_date: Option<String>,
     uri: Option<String>,
     external_ids: Option<ExternalIds>,
-    genres: Option<Vec<String>>,
-    label: Option<String>,
-    popularity: Option<Number>,
+    // genres: Option<Vec<String>>,
+    // label: Option<String>,
+    // popularity: Option<Number>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -118,7 +138,7 @@ struct Contributor {
     external_urls: ExternalUrls,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 struct ExternalUrls {
     spotify: Option<String>
 }
@@ -141,19 +161,26 @@ impl<'de> Deserialize<'de> for Track {
         }
 
         // let mut h = Outer::deserialize(deserializer).expect("Unsuccessful deserialization in Track");
-        let mut h = Outer::deserialize(deserializer)?;
-        let ms: f64 = h.track.duration_ms.as_f64().unwrap();
-        let album_img: Image = match h.track.album.images.pop_front() {
+        let mut h = match Outer::deserialize(deserializer) {
+            Ok(outer) => outer,
+            Err(e) => {
+                println!("Error");
+                return Err(e);
+            }
+        };
+        let mut track = h.track.unwrap_or_default();
+        let ms: f64 = track.duration_ms.as_f64().unwrap();
+        let album_img: Image = match track.album.images.pop_front() {
             Some(image) => image,
             None => Image::default(),
         };
-        let track_ext_ids = h.track.external_ids.unwrap_or_default();
-        let album_ext_ids = h.track.album.external_ids.unwrap_or_default();
+        let track_ext_ids = track.external_ids.unwrap_or_default();
+        let album_ext_ids = track.album.external_ids.unwrap_or_default();
 
         Ok(Track {
             // TODO: Deal with nested Images
-            id: h.track.id,
-            title: h.track.name,
+            id: track.id,
+            title: track.name,
             duration: format!("{}:{:.0}", (ms/60000_f64).floor(), (ms%60000_f64)/1000_f64),// Given in ms; convert to [MM:SS]
             added_at: h.added_at,
             is_local: h.is_local,
@@ -163,42 +190,42 @@ impl<'de> Deserialize<'de> for Track {
             contributor_id: h.added_by.id,
             contributor_uri: h.added_by.uri,
             contributor_spotify_url: h.added_by.external_urls.spotify, // ExternalUrls
-            album_id: h.track.album.id,
-            album_title: h.track.album.name,
-            album_total_tracks: h.track.album.total_tracks,
+            album_id: track.album.id,
+            album_title: track.album.name,
+            album_total_tracks: track.album.total_tracks,
             // album_available_markets: h.track.album.available_markets.join("|"), // pipe separated values (e.g. CA|BR|IT)
-            album_spotify_url: h.track.album.external_urls.spotify, // ExternalUrls
+            album_spotify_url: track.album.external_urls.spotify, // ExternalUrls
             album_img_url: album_img.url,
             album_img_width: album_img.width,
             album_img_height: album_img.height,
-            album_release_date: h.track.album.release_date,
-            album_uri: h.track.album.uri,
+            album_release_date: track.album.release_date,
+            album_uri: track.album.uri,
             album_isrc: album_ext_ids.isrc, // Part of ExternalIds object
             album_ean: album_ext_ids.ean, // Part of ExternalIds object
             album_upc: album_ext_ids.upc, // Part of ExternalIds object
-            album_genres: h.track.album.genres.unwrap_or_default().join("|"), // pipe separated values (e.g. rock|punk)
-            album_label: h.track.album.label,
-            album_popularity: h.track.album.popularity, // {Some(p) => p, None => Number::from(0)},
+            // album_genres: h.track.album.genres.unwrap_or_default().join("|"), // pipe separated values (e.g. rock|punk)
+            // album_label: h.track.album.label,
+            // album_popularity: h.track.album.popularity, // {Some(p) => p, None => Number::from(0)},
             // album_artists_num: Number,
             // album_artists_name: String, // pipe separated values (e.g. Immortal|Darkthrone)
-            artists_num: Number::from(h.track.artists.len()),
-            artists_name: artist_concat!(h.track.artists, name),
-            artists_id: artist_concat!(h.track.artists, id),
+            artists_num: Number::from(track.artists.len()),
+            artists_name: artist_concat!(track.artists, name),
+            artists_id: artist_concat!(track.artists, id),
             // artist_genres: artist_concat!(h.track.artists, genres), // pipe separated values (e.g. rock|punk)
             // artists_popularity: artist_concat!(h.track.artists, popularity),
-            artists_uri: artist_concat!(h.track.artists, name),
+            artists_uri: artist_concat!(track.artists, name),
             // artists_img_url: artist_concat!(h.track.artists, name),
             // artists_img_width: artist_concat!(h.track.artists, name),
             // artists_img_height: artist_concat!(h.track.artists, name),
             // artists_followers: artist_concat!(h.track.artists, name),
             // artists_spotify_url: artist_concat!(h.track.artists, name), // ExternalUrls
-            disc_number: h.track.disc_number,
-            explicit: h.track.explicit,
-            is_playable: h.track.is_playable,
-            popularity: h.track.popularity,
-            preview_url: h.track.preview_url,
-            track_number: h.track.track_number,
-            uri: h.track.uri,
+            disc_number: track.disc_number,
+            explicit: track.explicit,
+            // is_playable: h.track.is_playable,
+            popularity: track.popularity,
+            preview_url: track.preview_url,
+            track_number: track.track_number,
+            uri: track.uri,
         })
     }
 }
