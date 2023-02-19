@@ -3,3 +3,4 @@
 *.csv
 *.sample
 .env
+*.tar
