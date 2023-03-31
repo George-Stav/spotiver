@@ -7,6 +7,14 @@ use std::{
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde_json::{Value, Number};
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SimpleTrack {
+    pub name: String,
+    pub uri: String,
+    href: String,
+    id: String,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct Track {
     id: Option<String>,
@@ -156,7 +164,10 @@ impl<'de> Deserialize<'de> for Track {
     {
         macro_rules! artist_concat {
             ($artists:expr, $var:ident) => {
-                $artists.iter().filter_map(|artist| artist.$var.clone()).collect::<Vec<String>>().join("|")
+                $artists.iter()
+		    .filter_map(|artist| artist.$var.clone())
+		    .collect::<Vec<String>>()
+		    .join("|")
             };
         }
 
