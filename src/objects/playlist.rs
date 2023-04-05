@@ -3,6 +3,11 @@ use std::collections::VecDeque;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde_json::{Value, Number};
 
+#[derive(Debug, Deserialize)]
+pub struct CreatePlaylist {
+    pub id: String
+}
+
 #[derive(Debug, Serialize)]
 pub struct Playlist {
     pub id: String,

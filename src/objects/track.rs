@@ -7,18 +7,58 @@ use std::{
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde_json::{Value, Number};
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+macro_rules! artist_concat {
+    ($artists:expr, $var:ident) => {
+	$artists.iter()
+	    .filter_map(|artist| artist.$var.clone())
+	    .collect::<Vec<String>>()
+	    .join("|")
+    };
+}
+
+#[derive(Debug, Serialize, Clone)]
 pub struct SimpleTrack {
     pub name: String,
     pub uri: String,
+    pub artist: String,
     href: String,
     id: String,
+}
+
+impl<'de> Deserialize<'de> for SimpleTrack {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where D: Deserializer<'de>
+    {
+	#[derive(Debug, Deserialize)]
+	struct SimpleTrackHelper {
+	    name: String,
+	    uri: String,
+	    href: String,
+	    id: String,
+	    artists: Vec<Artist>,
+	}
+
+	let mut h = match SimpleTrackHelper::deserialize(deserializer) {
+	    Ok(outer) => outer,
+	    Err(e) => {
+		return Err(e);
+	    }
+	};
+
+	Ok(SimpleTrack {
+	    name: h.name,
+	    uri: h.uri,
+	    href: h.href,
+	    id: h.id,
+	    artist: artist_concat!(h.artists, name),
+	})
+    }
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct Track {
     id: Option<String>,
-    title: Option<String>,
+    pub title: Option<String>,
     duration: String, // Given in ms; convert to [MM:SS]
     added_at: String,
     is_local: bool,
@@ -47,7 +87,7 @@ pub struct Track {
     // album_artists_num: Number,
     // album_artists_name: String, // pipe separated values (e.g. Immortal|Darkthrone)
     artists_num: Number,
-    artists_name: String,
+    pub artists_name: String,
     artists_id: String,
     // artists_genres: String, // pipe separated values (e.g. rock|punk)
     // artists_popularity: Option<String>,
@@ -63,7 +103,7 @@ pub struct Track {
     popularity: Number,
     preview_url: Option<String>,
     track_number: Number,
-    uri: Option<String>,
+    pub uri: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -162,82 +202,73 @@ impl<'de> Deserialize<'de> for Track {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where D: Deserializer<'de>
     {
-        macro_rules! artist_concat {
-            ($artists:expr, $var:ident) => {
-                $artists.iter()
-		    .filter_map(|artist| artist.$var.clone())
-		    .collect::<Vec<String>>()
-		    .join("|")
-            };
-        }
 
-        // let mut h = Outer::deserialize(deserializer).expect("Unsuccessful deserialization in Track");
-        let mut h = match Outer::deserialize(deserializer) {
-            Ok(outer) => outer,
-            Err(e) => {
-                println!("Error");
-                return Err(e);
-            }
-        };
-        let mut track = h.track.unwrap_or_default();
-        let ms: f64 = track.duration_ms.as_f64().unwrap();
-        let album_img: Image = match track.album.images.pop_front() {
-            Some(image) => image,
-            None => Image::default(),
-        };
-        let track_ext_ids = track.external_ids.unwrap_or_default();
-        let album_ext_ids = track.album.external_ids.unwrap_or_default();
+	// let mut h = Outer::deserialize(deserializer).expect("Unsuccessful deserialization in Track");
+	let mut h = match Outer::deserialize(deserializer) {
+	    Ok(outer) => outer,
+	    Err(e) => {
+		return Err(e);
+	    }
+	};
+	let mut track = h.track.unwrap_or_default();
+	let ms: f64 = track.duration_ms.as_f64().unwrap();
+	let album_img: Image = match track.album.images.pop_front() {
+	    Some(image) => image,
+	    None => Image::default(),
+	};
+	let track_ext_ids = track.external_ids.unwrap_or_default();
+	let album_ext_ids = track.album.external_ids.unwrap_or_default();
 
-        Ok(Track {
-            // TODO: Deal with nested Images
-            id: track.id,
-            title: track.name,
-            duration: format!("{}:{:.0}", (ms/60000_f64).floor(), (ms%60000_f64)/1000_f64),// Given in ms; convert to [MM:SS]
-            added_at: h.added_at,
-            is_local: h.is_local,
-            track_isrc: track_ext_ids.isrc, // Part of ExternalIds object
-            track_ean: track_ext_ids.ean, // Part of ExternalIds object
-            track_upc: track_ext_ids.upc, // Part of ExternalIds object
-            contributor_id: h.added_by.id,
-            contributor_uri: h.added_by.uri,
-            contributor_spotify_url: h.added_by.external_urls.spotify, // ExternalUrls
-            album_id: track.album.id,
-            album_title: track.album.name,
-            album_total_tracks: track.album.total_tracks,
-            // album_available_markets: h.track.album.available_markets.join("|"), // pipe separated values (e.g. CA|BR|IT)
-            album_spotify_url: track.album.external_urls.spotify, // ExternalUrls
-            album_img_url: album_img.url,
-            album_img_width: album_img.width,
-            album_img_height: album_img.height,
-            album_release_date: track.album.release_date,
-            album_uri: track.album.uri,
-            album_isrc: album_ext_ids.isrc, // Part of ExternalIds object
-            album_ean: album_ext_ids.ean, // Part of ExternalIds object
-            album_upc: album_ext_ids.upc, // Part of ExternalIds object
-            // album_genres: h.track.album.genres.unwrap_or_default().join("|"), // pipe separated values (e.g. rock|punk)
-            // album_label: h.track.album.label,
-            // album_popularity: h.track.album.popularity, // {Some(p) => p, None => Number::from(0)},
-            // album_artists_num: Number,
-            // album_artists_name: String, // pipe separated values (e.g. Immortal|Darkthrone)
-            artists_num: Number::from(track.artists.len()),
-            artists_name: artist_concat!(track.artists, name),
-            artists_id: artist_concat!(track.artists, id),
-            // artist_genres: artist_concat!(h.track.artists, genres), // pipe separated values (e.g. rock|punk)
-            // artists_popularity: artist_concat!(h.track.artists, popularity),
-            artists_uri: artist_concat!(track.artists, name),
-            // artists_img_url: artist_concat!(h.track.artists, name),
-            // artists_img_width: artist_concat!(h.track.artists, name),
-            // artists_img_height: artist_concat!(h.track.artists, name),
-            // artists_followers: artist_concat!(h.track.artists, name),
-            // artists_spotify_url: artist_concat!(h.track.artists, name), // ExternalUrls
-            disc_number: track.disc_number,
-            explicit: track.explicit,
-            // is_playable: h.track.is_playable,
-            popularity: track.popularity,
-            preview_url: track.preview_url,
-            track_number: track.track_number,
-            uri: track.uri,
-        })
+	Ok(Track {
+	    // TODO: Deal with nested Images
+	    id: track.id,
+	    title: track.name,
+	    duration: format!("{}:{:.0}", (ms/60000_f64).floor(), (ms%60000_f64)/1000_f64),// Given in ms; convert to [MM:SS]
+	    added_at: h.added_at,
+	    is_local: h.is_local,
+	    track_isrc: track_ext_ids.isrc, // Part of ExternalIds object
+	    track_ean: track_ext_ids.ean, // Part of ExternalIds object
+	    track_upc: track_ext_ids.upc, // Part of ExternalIds object
+	    contributor_id: h.added_by.id,
+	    contributor_uri: h.added_by.uri,
+	    contributor_spotify_url: h.added_by.external_urls.spotify, // ExternalUrls
+	    album_id: track.album.id,
+	    album_title: track.album.name,
+	    album_total_tracks: track.album.total_tracks,
+	    // album_available_markets: h.track.album.available_markets.join("|"), // pipe separated values (e.g. CA|BR|IT)
+	    album_spotify_url: track.album.external_urls.spotify, // ExternalUrls
+	    album_img_url: album_img.url,
+	    album_img_width: album_img.width,
+	    album_img_height: album_img.height,
+	    album_release_date: track.album.release_date,
+	    album_uri: track.album.uri,
+	    album_isrc: album_ext_ids.isrc, // Part of ExternalIds object
+	    album_ean: album_ext_ids.ean, // Part of ExternalIds object
+	    album_upc: album_ext_ids.upc, // Part of ExternalIds object
+	    // album_genres: h.track.album.genres.unwrap_or_default().join("|"), // pipe separated values (e.g. rock|punk)
+	    // album_label: h.track.album.label,
+	    // album_popularity: h.track.album.popularity, // {Some(p) => p, None => Number::from(0)},
+	    // album_artists_num: Number,
+	    // album_artists_name: String, // pipe separated values (e.g. Immortal|Darkthrone)
+	    artists_num: Number::from(track.artists.len()),
+	    artists_name: artist_concat!(track.artists, name),
+	    artists_id: artist_concat!(track.artists, id),
+	    // artist_genres: artist_concat!(h.track.artists, genres), // pipe separated values (e.g. rock|punk)
+	    // artists_popularity: artist_concat!(h.track.artists, popularity),
+	    artists_uri: artist_concat!(track.artists, name),
+	    // artists_img_url: artist_concat!(h.track.artists, name),
+	    // artists_img_width: artist_concat!(h.track.artists, name),
+	    // artists_img_height: artist_concat!(h.track.artists, name),
+	    // artists_followers: artist_concat!(h.track.artists, name),
+	    // artists_spotify_url: artist_concat!(h.track.artists, name), // ExternalUrls
+	    disc_number: track.disc_number,
+	    explicit: track.explicit,
+	    // is_playable: h.track.is_playable,
+	    popularity: track.popularity,
+	    preview_url: track.preview_url,
+	    track_number: track.track_number,
+	    uri: track.uri,
+	})
     }
 }
 

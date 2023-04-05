@@ -7,7 +7,7 @@ mod track;
 mod image;
 
 use crate::objects::{
-    playlist::Playlist,
+    playlist::{Playlist, CreatePlaylist},
     response::{SearchResponse, Response},
     track::{SimpleTrack, Track},
 };
@@ -16,7 +16,7 @@ use std::{
     collections::{HashSet, VecDeque},
     time::{Duration, SystemTime},
     fs::File,
-    io::Write,
+    io::{Write, Read},
     path::Path,
 };
 use csv::Writer;
@@ -121,52 +121,79 @@ struct User {
     id: String,
 }
 
-pub async fn search_weedian_album(client: &Client, path: &Path) -> usize {
+#[derive(Serialize)]
+struct Image {
+    base64: String,
+}
+
+pub async fn search_weedian_tracks(client: &Client, path: &Path) -> usize {
     let mut tracks: Vec<(String, String)> = track_names(path);
     let mut count = 0;
 
     let mut uris: Vec<String> = Vec::new();
     for (artist, track) in tracks.iter() {
 	let res = search_track(client, &track, &artist).await;
-
 	if let Some(r) = res {
 	    count += 1;
 	    uris.push(r.uri);
-	} else {
-	    println!("    Not found: {artist} - {track}");
 	}
     }
-    add_tracks_to_playlist(client, &uris, "39Fzt1Um2z7j8tPqe2f2aK").await;
+    let playlist_name = path.iter().last().unwrap().to_str().unwrap().replace("_", " ");
+    let playlist_id = weedian_create_playlist(client, playlist_name.as_str()).await.unwrap();
+
+    weedian_update_playlist_image(client, playlist_id.as_str(), path.join(Path::new("small_cover.png")).as_path()).await.unwrap();
+    add_tracks_to_playlist(client, &uris, playlist_id.as_str()).await;
+    add_tracks_to_playlist(client, &uris, "39Fzt1Um2z7j8tPqe2f2aK").await; // Trip Around the World
 
     println!("{} => {}/{}", path.display(), count, tracks.len());
     count
 }
 
+pub async fn weedian_update_playlist_image(client: &Client, id: &str, path: &Path) -> Result<(), Box<dyn Error>> {
+    // doesn't work
+    let mut image_file = File::open(path)?;
+    let mut image_data = Vec::new();
+    image_file.read_to_end(&mut image_data)?;
+    let image_base64 = base64::encode(&image_data);
+
+    let mut response = client
+	.put(format!("https://api.spotify.com/v1/playlists/{}/images", id))
+	.json(&Image {base64: image_base64})
+	.send().await?;
+    Ok(())
+}
+
 pub async fn search_track(client: &Client, track: &str, artist: &str) -> Option<SimpleTrack> {
-// : SearchResponse<SimpleTrack> 
     let mut response = client.get("https://api.spotify.com/v1/search")
 	.query(&[
 	    ("q", format!("remaster%20track:{track}%20artist:{artist}").as_str()),
 	    ("type", "track"),
-	    ("limit", "1"),
+	    ("market", "GB"),
+	    ("limit", "50"),
 	])
 	.send().await.expect("bad send");
 
+    println!("    Attempting: [{artist} - {track}]");
     match response.json::<SearchResponse<SimpleTrack>>().await {
 	Ok(mut r) => {
-	    if let Some(simple_track) = r.tracks.items.pop() {
-		if simple_track.name.to_lowercase() != track.to_lowercase() {
-		    // println!("[{}|{}] by {}", simple_track.name, track, artist);
-		    None
-		}
-		else {
-		    Some(simple_track)
-		}
-	    } else {
-		None
-	    }
+	    r.tracks.items
+		.iter()
+		.filter_map(|track_response| {
+		    if track_response.name.to_lowercase() == track.to_lowercase() && track_response.artist.to_lowercase() == artist.to_lowercase() {
+			println!("        Found: [{} - {}]", track_response.artist, track_response.name);
+			Some(track_response)
+		    }
+		    else {
+			// println!("        No match: [{} - {}]", track_response.artist, track_response.name);
+			None
+		    }
+		})
+		.last().cloned()
 	},
-	Err(_) => None
+	Err(e) => {
+	    println!("{:?}", e);
+	    None
+	}
     }
 }
 
@@ -176,25 +203,23 @@ pub async fn add_tracks_to_playlist(client: &Client, uris: &[String], playlist_i
 	.send().await.expect("bad send");
 }
 
-pub async fn weedian_create_playlist(client: &Client, name: &str) -> Result<(), Box<dyn Error>> {
+pub async fn weedian_create_playlist(client: &Client, name: &str) -> Result<String, Box<dyn Error>> {
     let user: User = client.get("https://api.spotify.com/v1/me").send().await?.json().await?; // nikfisto
-    println!("{{\"name\": \"{name}\", \"public\": false}} {:?}", user.id);
-    let mut response = client
-	.post("https://api.spotify.com/v1/users/{user.id}/playlists")
+    let mut response: CreatePlaylist = client
+	.post(format!("https://api.spotify.com/v1/users/{}/playlists", user.id))
         .body(format!("{{\"name\": \"{name}\", \"public\": false}}"))
 	.send().await?
-	.text().await?;
-    println!("{:?}", response);
-    Ok(())
+	.json().await?;
+    Ok(response.id)
 }
 
-fn track_names(path: &Path) -> Vec<(String, String)> {
+pub fn track_names(path: &Path) -> Vec<(String, String)> {
     let iter = path.read_dir().expect("read_dir call failed in track_names()");
     let mut tracks: Vec<(String, String)> = Vec::new();
 
     for entry in iter
 	.filter_map(|file| file.ok())
-	.filter(|entry| entry.path().extension().unwrap() == "mp3") {
+	.filter(|entry| entry.path().extension().unwrap() == "flac") {
 	    if let Some(entry) = entry.file_name().to_str() {
 		let mut temp: Vec<&str> = entry.split(" - ").collect();
 		let (track, _) = temp.pop().unwrap().rsplit_once('.').unwrap();
