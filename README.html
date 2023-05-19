@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>README.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<h1>Spotiver</h1>
+
+<p>Spot(ify) (arch)iver. A program written in Rust that scrapes your spotify account&rsquo;s structure for backup purposes.</p>
+
+<h2>Authentication</h2>
+
+<p>This app uses Spotify&rsquo;s <a href="https://developer.spotify.com/documentation/general/guides/authorization/code-flow/">Authorization Code Flow</a> and assumes that a <code>.env</code> file exists with the appropriate values already populated:
+- <code>client_id</code>
+- <code>client_secret</code>
+- <code>refresh_token</code></p>
+
+<p>A <code>.env.example</code> file is provided in order to show how to structure your actual <code>.env</code> file.</p>
+
+<h2>TODOs</h2>
+
+<ul>
+<li>Make song matching smarter (e.g. Levenstein Distance)</li>
+<li>Accept .txt files (song <em>sep</em> artist)</li>
+<li>Make spotiver into a CLI utility</li>
+</ul>
+
+
+</body>
+</html>

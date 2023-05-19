@@ -10,3 +10,9 @@ This app uses Spotify's [Authorization Code Flow](https://developer.spotify.com/
 - `refresh_token`
 
 A `.env.example` file is provided in order to show how to structure your actual `.env` file.
+
+## TODOs
+
+- Make song matching smarter (e.g. Levenstein Distance)
+- Accept .txt files (song *sep* artist)
+- Make spotiver into a CLI utility
