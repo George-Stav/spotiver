@@ -1,5 +1,23 @@
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde_json::{Value, Number};
+use serde::{Serialize, Deserialize};
+use serde_json::Number;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
+pub struct ImageObject {
+    pub url: String,
+    pub width: Option<Number>,
+    pub height: Option<Number>,
+}
+
+impl Default for ImageObject {
+    fn default() -> Self {
+	ImageObject {
+	    url: "".to_string(),
+	    width: None,
+	    height: None
+	}
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Image {

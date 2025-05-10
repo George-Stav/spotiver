@@ -16,3 +16,7 @@ A `.env.example` file is provided in order to show how to structure your actual 
 - Make song matching smarter (e.g. Levenstein Distance)
 - Accept .txt files (song *sep* artist)
 - Make spotiver into a CLI utility
+- Convert 'type' from `String` to an `ENUM`
+- Backup mode
+- Download image links for backup purposes
+- Fix SearchResponse

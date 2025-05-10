@@ -36,10 +36,12 @@ pub async fn token() -> Result<String, Box<dyn Error>> {
     Ok(token.access_token)
 }
 
-async fn refresh() -> Result<Token, Box<dyn Error>> {
-    // Refresh the token using the REFRESH_TOKEN found in .env
-    // Code derived from Spotify Web API docs:
-    // https://developer.spotify.com/documentation/general/guides/authorization/code-flow
+pub async fn refresh() -> Result<Token, Box<dyn Error>> {
+    /* Refresh the access token using the REFRESH_TOKEN found in .env
+       Code derived from Spotify Web API docs:
+       - https://developer.spotify.com/documentation/general/guides/authorization/code-flow
+       - https://developer.spotify.com/documentation/web-api/tutorials/refreshing-tokens
+    */
 
     let project_root = dotenv::var("PROJECT_ROOT").expect("PROJECT_ROOT should be present in .env");
     let client_id = dotenv::var("CLIENT_ID").expect("CLIENT_ID should be present in .env");
@@ -78,7 +80,7 @@ async fn refresh() -> Result<Token, Box<dyn Error>> {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-struct Token {
+pub struct Token {
     access_token: String,
     #[serde(rename="expires_in")]
     expires_at: i64,

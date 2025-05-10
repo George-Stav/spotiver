@@ -4,3 +4,4 @@
 *.sample
 .env
 *.tar
+Cargo.lock

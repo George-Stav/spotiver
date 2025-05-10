@@ -30,18 +30,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
 
     let client = Client::builder()
+        .connection_verbose(true)
         .default_headers(headers)
         .build()?;
 
-    let root_dir = Path::new("/mnt/HDD/MUSIC/WEEDIAN/flac");
-    let mut sum = 0;
-    let mut successful = 0;
-    for album in objects::albums(&root_dir) {
-	println!("[{}]", album);
-	let v = objects::track_names(root_dir.join(album.clone()).as_path());
-	sum += v.len();
-	successful += objects::search_weedian_tracks(&client, root_dir.join(album.clone()).as_path()).await;
-    }
-    println!("Total: {successful}/{sum}");
+    objects::read_json().await?;
+    // objects::error_handling(&client).await;
+    // objects::playlists(&client).await?;
+    // objects::backup(&client, Path::new("/mnt/HDD8/MUSIC/spotiver")).await?;
+    // let playlist_id = "7ojBoCyhFa615na068v1PB";
+    // let _t = objects::tracks_test(&client, playlist_id).await;
+
     Ok(())
 }
