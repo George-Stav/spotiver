@@ -7,7 +7,9 @@ use crate::objects::{
     },
     restriction::RestrictionsObject,
     artist::SimplifiedArtistObject,
-    album::AlbumObject
+    album::AlbumObject,
+    sj_number::SjNumber
+
 };
 use std::{
     collections::VecDeque,
@@ -16,23 +18,13 @@ use std::{
 };
 use chrono::{DateTime, Utc, serde::ts_seconds};
 use serde::{Serialize, Deserialize, Deserializer};
-use serde_json::Number;
 
 /* Spotify API object, notice plural instead of singular */
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+// #[serde(default)]
+#[derive(Default, Debug, Deserialize, Serialize, Clone)]
 pub struct TracksObject {
     href: String,
-    total: Number
-}
-
-impl Default for TracksObject {
-    fn default() -> Self {
-	TracksObject {
-	    href: "".to_string(),
-	    total: Number::from(0)
-	}
-    }
+    total: SjNumber
 }
 
 /* Spotify API object */
@@ -43,8 +35,8 @@ pub struct Track {
     album: AlbumObject,
     pub artists: Vec<SimplifiedArtistObject>,
     available_markets: Vec<String>,
-    disc_number: Number,
-    duration_ms: Number,
+    disc_number: SjNumber,
+    duration_ms: SjNumber,
     explicit: bool,
     external_ids: ExternalIDsObject,
     external_urls: ExternalURLsObject,
@@ -55,9 +47,9 @@ pub struct Track {
     #[serde(default)]
     restrictions: RestrictionsObject,
     pub name: String,
-    popularity: Number, // https://developer.spotify.com/documentation/web-api/reference/get-playlists-tracks
+    popularity: SjNumber, // https://developer.spotify.com/documentation/web-api/reference/get-playlists-tracks
     // pub preview_url: Option<String>,
-    track_number: Number,
+    track_number: SjNumber,
     r#type: String,
     pub uri: String,
     is_local: bool
@@ -74,17 +66,17 @@ impl<'de> Deserialize<'de> for Track {
 	    added_at: String,
 	    added_by: OwnerObject,
 	    is_local: bool,
-	    pub track: TrackObject,
+	    pub track: Option<TrackObject>,
 	}
 
 	/* Spotify API object */
-	#[derive(Debug, Serialize, Deserialize)]
+	#[derive(Default, Debug, Serialize, Deserialize)]
 	pub struct TrackObject {
 	    album: AlbumObject,
 	    pub artists: Vec<SimplifiedArtistObject>,
 	    available_markets: Vec<String>,
-	    disc_number: Number,
-	    duration_ms: Number,
+	    disc_number: SjNumber,
+	    duration_ms: SjNumber,
 	    explicit: bool,
 	    external_ids: ExternalIDsObject,
 	    external_urls: ExternalURLsObject,
@@ -95,37 +87,38 @@ impl<'de> Deserialize<'de> for Track {
 	    #[serde(default)]
 	    restrictions: RestrictionsObject,
 	    pub name: String,
-	    popularity: Number, // https://developer.spotify.com/documentation/web-api/reference/get-playlists-tracks
+	    popularity: SjNumber, // https://developer.spotify.com/documentation/web-api/reference/get-playlists-tracks
 	    // pub preview_url: Option<String>,
-	    track_number: Number,
+	    track_number: SjNumber,
 	    r#type: String,
 	    pub uri: String,
 	    is_local: bool
 	}
 
-	let mut helper = PlaylistTrackObject::deserialize(deserializer)?;
+	let helper = PlaylistTrackObject::deserialize(deserializer).expect("here's the error");
+	let track = helper.track.unwrap_or_default();
 
 	Ok(Track {
 	    added_at: helper.added_at,
 	    added_by: helper.added_by,
-	    album: helper.track.album,
-	    artists: helper.track.artists,
-	    available_markets: helper.track.available_markets,
-	    disc_number: helper.track.disc_number,
-	    duration_ms: helper.track.duration_ms,
-	    explicit: helper.track.explicit,
-	    external_ids: helper.track.external_ids,
-	    external_urls: helper.track.external_urls,
-	    href: helper.track.href.unwrap_or_default(),
-	    id: helper.track.id.unwrap_or_default(),
-	    is_playable: helper.track.is_playable,
-	    restrictions: helper.track.restrictions,
-	    name: helper.track.name,
-	    popularity: helper.track.popularity,
-	    track_number: helper.track.track_number,
-	    r#type: helper.track.r#type,
-	    uri: helper.track.uri,
-	    is_local: helper.track.is_local
+	    album: track.album,
+	    artists: track.artists,
+	    available_markets: track.available_markets,
+	    disc_number: track.disc_number,
+	    duration_ms: track.duration_ms,
+	    explicit: track.explicit,
+	    external_ids: track.external_ids,
+	    external_urls: track.external_urls,
+	    href: track.href.unwrap_or_default(),
+	    id: track.id.unwrap_or_default(),
+	    is_playable: track.is_playable,
+	    restrictions: track.restrictions,
+	    name: track.name,
+	    popularity: track.popularity,
+	    track_number: track.track_number,
+	    r#type: track.r#type,
+	    uri: track.uri,
+	    is_local: track.is_local
 	})
     }
 }

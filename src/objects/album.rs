@@ -11,11 +11,17 @@ use serde_json::Number;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all="camelCase")]
 enum AlbumType {
-    Album, Single, Compilation
+    Album, Single, Compilation, None
+}
+
+impl Default for AlbumType {
+    fn default() -> Self {
+	AlbumType::None
+    }
 }
 
 /* Spotify API object */
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct AlbumObject {
     album_type: Option<AlbumType>,
     total_tracks: Option<Number>,
