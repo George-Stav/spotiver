@@ -39,7 +39,7 @@ impl<'de, T: Serialize+Deserialize<'de>+Clone> Deserialize<'de> for Response<T> 
 		.filter_map(|e| e.clone().unwrap_or(None))
 		.collect();
 
-	println!("[INFO]: {} non-nil items in Response", items.len());
+	// println!("[INFO]: {} non-nil items in Response out of a total of {}", items.len(), helper.total);
 
 	Ok(Response {
 	    href: helper.href,
@@ -52,23 +52,3 @@ impl<'de, T: Serialize+Deserialize<'de>+Clone> Deserialize<'de> for Response<T> 
 	})	
     }
 }
-
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct Response<T: Serialize> {
-//     pub href: String,
-//     pub limit: Number,
-//     pub next: Option<String>,
-//     pub offset: Number,
-//     pub previous: Option<String>,
-//     pub total: Number,
-//     pub items: Vec<T>,
-//     #[serde(skip_deserializing)]
-//     pub request_curl: String,
-// }
-
-// impl<T: Serialize> Response<T> {
-//     pub fn set_request_curl(&mut self, curl: &str) {
-//         self.request_curl = curl.to_string();
-//     }
-// }

@@ -34,12 +34,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .default_headers(headers)
         .build()?;
 
-    objects::read_json().await?;
-    // objects::error_handling(&client).await;
-    // objects::playlists(&client).await?;
-    // objects::backup(&client, Path::new("/mnt/HDD8/MUSIC/spotiver")).await?;
+    // let pl_json = objects::pl_json(Path::new("/home/george/BULK/spotiver/playlists.json")).await?;
+    objects::backup(&client, Path::new("/home/george/BULK/spotiver"), false, false).await?;
     // let playlist_id = "7ojBoCyhFa615na068v1PB";
-    // let _t = objects::tracks_test(&client, playlist_id).await;
+    // let playlist_id = "7KFoK4LJ23EncELJwYmTDG";
+    // let _t = objects::tracks(&client, playlist_id).await;
 
     Ok(())
 }

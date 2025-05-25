@@ -10,6 +10,7 @@ mod owner;
 mod restriction;
 mod artist;
 mod album;
+mod sj_number;
 
 use crate::objects::{
     playlist::{CreatePlaylist, Playlist},
@@ -18,10 +19,10 @@ use crate::objects::{
 };
 use std::{
     fs,
+    io::{Read, self},
     error::Error,
     collections::{HashSet, VecDeque},
     time::{Duration, SystemTime},
-    io::{Write, Read},
     path::Path,
 };
 use csv::Writer;
@@ -39,32 +40,67 @@ enum ItemType {
     Track(String)
 }
 
-pub async fn read_json() -> Result<(), Box<dyn Error>> {
-    let file = std::fs::File::open("/mnt/HDD8/MUSIC/spotiver/playlists.json")?;
-    let reader = std::io::BufReader::new(file); 
+pub fn pl_json(location: &Path) -> Result<Vec<Playlist>, Box<dyn Error>> {
+    let playlists_path = location.join("playlists.json");
+    let file_content = fs::read_to_string(&playlists_path)
+        .map_err(|e| {
+            println!("[ERROR]: Couldn't read file [{:?}]: {}", playlists_path, e);
+            e
+        })?;
 
-    let playlists: Vec<crate::objects::playlist::Playlist> = serde_json::from_reader(reader)?;
-    println!("{:?}", playlists);
+    let playlists: Vec<Playlist> = serde_json::from_str(&file_content)
+        .map_err(|e| {
+            println!("[ERROR]: Couldn't deserialise object in file [{:?}]: {}", playlists_path, e);
+            e
+        })?;
 
-    Ok(())
+    Ok(playlists)
 }
 
-pub async fn backup(client: &Client, location: &Path) -> Result<(), Box<dyn Error>> {
+pub async fn backup(client: &Client, location: &Path, force_playlists: bool, clear_existing: bool) -> Result<(), Box<dyn Error>> {
+    if let Some(filename) = location.file_name() {
+	if clear_existing && filename.to_str() == Some("spotiver") {
+	    fs::remove_dir_all(location); // no need to unwrap
+	}
+    }
+
     println!("[INFO]: Creating directory [{:?}]...", location);
-    fs::create_dir_all(location)?;
+    fs::create_dir_all(location);
 
     println!("[INFO]: Fetching playlists...");
-    let playlists = playlists(&client).await?;
+    let playlists: Vec<Playlist> = if force_playlists {
+	playlists(&client).await.unwrap()
+    } else {
+	match pl_json(&location) {
+	    Ok(p) => p,
+	    Err(_) => playlists(&client).await.unwrap(),
+	}
+    };
 
+    // Error returned if it already exists.
+    // No need to deal with it.
     spotiver::save_as_json(&playlists,
-			   location.join("playlists.json").as_path())?;
+			   location.join("playlists.json").as_path());
 
-    for playlist in playlists.iter() {
-	println!("[INFO]: Fetching tracks for playlist [{} - {}]...",  playlist.name, playlist.id);
-	let tracks = tracks(&client, playlist.id.as_str()).await?;
-
+    let total_playlists = playlists.len();
+    for (idx, playlist) in playlists.iter().enumerate() {
 	let playlist_path = location.join(format!("{}", playlist.id));
-	fs::create_dir(&playlist_path);
+	if let Err(e) = fs::create_dir(&playlist_path) {
+	    match e.kind() {
+		io::ErrorKind::AlreadyExists => {
+		    if playlist_path.read_dir().expect("read_dir call should not fail here").count() != 0 {
+			println!("[WARN]: Non-empty directory already exists for playlist {}, skipping fetch.", playlist);
+			continue;
+		    }
+		}
+		_ => {
+		    println!("[ERROR]: Unrecoverable error occured when creating track directory: {}", e);
+		}
+	    }
+	}
+	
+	println!("[INFO]: [{}/{}] Fetching tracks for playlist {}...", idx+1, total_playlists, playlist);
+	let tracks = tracks(&client, playlist.id.as_str()).await?;
 
 	spotiver::save_as_json(&tracks,
 			       playlist_path.join("tracks.json").as_path())?;

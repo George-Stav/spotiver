@@ -4,6 +4,7 @@ use crate::objects::{
     owner::OwnerObject,
     track::TracksObject
 };
+use std::fmt;
 use std::collections::VecDeque;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde_json::{Value, Number};
@@ -27,6 +28,11 @@ pub struct Playlist {
     primary_color: String,
 }
 
+impl fmt::Display for Playlist {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\"{}\" - {}", self.name, self.id)
+    }
+}
 
 impl<'de> Deserialize<'de> for Playlist {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
