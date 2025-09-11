@@ -2,8 +2,8 @@
 #![allow(unused)]
 
 mod response;
-mod playlist;
-mod track;
+pub mod playlist;
+pub mod track;
 mod image;
 mod external;
 mod owner;
@@ -40,6 +40,34 @@ enum ItemType {
     Track(String)
 }
 
+fn get_pl_creation_date(tracks: &[Track]) -> Option<String> {
+    let mut dates = tracks
+	.iter()
+	.filter_map(|track| DateTime::parse_from_str(track.added_at.as_str(), "%+").ok())
+	.collect::<Vec<DateTime<_>>>();
+
+    dates.sort();
+
+    dates.first().map(|datetime| datetime.to_string())
+}
+
+fn track_json(location: &Path, playlist_id: &str) -> Result<Vec<Track>, Box<dyn std::error::Error>> {
+    let tracks_path = location.join(playlist_id).as_path().join("tracks.json");
+    let file_content = fs::read_to_string(&tracks_path)
+        .map_err(|e| {
+            println!("[ERROR]: Couldn't read file [{:?}]: {}", tracks_path, e);
+            e
+        })?;
+
+    let tracks: Vec<Track> = serde_json::from_str(&file_content)
+        .map_err(|e| {
+            println!("[ERROR]: Couldn't deserialise object in file [{:?}]: {}", tracks_path, e);
+            e
+        }).unwrap();
+
+    Ok(tracks)
+}
+
 pub fn pl_json(location: &Path) -> Result<Vec<Playlist>, Box<dyn Error>> {
     let playlists_path = location.join("playlists.json");
     let file_content = fs::read_to_string(&playlists_path)
@@ -68,7 +96,7 @@ pub async fn backup(client: &Client, location: &Path, force_playlists: bool, cle
     fs::create_dir_all(location);
 
     println!("[INFO]: Fetching playlists...");
-    let playlists: Vec<Playlist> = if force_playlists {
+    let mut playlists: Vec<Playlist> = if force_playlists {
 	playlists(&client).await.unwrap()
     } else {
 	match pl_json(&location) {
@@ -77,13 +105,9 @@ pub async fn backup(client: &Client, location: &Path, force_playlists: bool, cle
 	}
     };
 
-    // Error returned if it already exists.
-    // No need to deal with it.
-    spotiver::save_as_json(&playlists,
-			   location.join("playlists.json").as_path());
-
     let total_playlists = playlists.len();
-    for (idx, playlist) in playlists.iter().enumerate() {
+    for (idx, playlist) in playlists.iter_mut().enumerate() {
+	if playlist.id == "7KFoK4LJ23EncELJwYmTDG" {continue}
 	let playlist_path = location.join(format!("{}", playlist.id));
 	if let Err(e) = fs::create_dir(&playlist_path) {
 	    match e.kind() {
@@ -102,9 +126,16 @@ pub async fn backup(client: &Client, location: &Path, force_playlists: bool, cle
 	println!("[INFO]: [{}/{}] Fetching tracks for playlist {}...", idx+1, total_playlists, playlist);
 	let tracks = tracks(&client, playlist.id.as_str()).await?;
 
+	playlist.created_at = get_pl_creation_date(&tracks);
+
 	spotiver::save_as_json(&tracks,
 			       playlist_path.join("tracks.json").as_path())?;
     }
+
+    // Error returned if it already exists.
+    // No need to deal with it.
+    spotiver::save_as_json(&playlists,
+			   location.join("playlists.json").as_path());
 
     println!("[INFO]: Done.");
     Ok(())

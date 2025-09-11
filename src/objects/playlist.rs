@@ -12,6 +12,7 @@ use serde_json::{Value, Number};
 /* Custom Object */
 #[derive(Debug, Serialize, Clone)]
 pub struct Playlist {
+    pub created_at: Option<String>,
     collaborative: bool,
     description: String,
     external_urls: ExternalURLsObject,
@@ -60,6 +61,7 @@ impl<'de> Deserialize<'de> for Playlist {
 	let mut helper = SimplifiedPlaylistObject::deserialize(deserializer)?;
 
 	Ok(Playlist {
+	    created_at: None,
 	    collaborative: helper.collaborative,
 	    description: helper.description,
 	    external_urls: helper.external_urls,

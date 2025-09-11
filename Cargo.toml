@@ -18,3 +18,11 @@ base64 = "0.13"
 dotenv = "0.15"
 chrono = { version = "0.4", features = ["serde"] }
 csv = "1.1.0"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[[bin]]
+name = "side"
+path = "src/side.rs"

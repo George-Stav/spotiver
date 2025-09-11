@@ -30,7 +30,7 @@ pub struct TracksObject {
 /* Spotify API object */
 #[derive(Debug, Serialize, Clone)]
 pub struct Track {
-    added_at: String,
+    pub added_at: String,
     added_by: OwnerObject,
     album: AlbumObject,
     pub artists: Vec<SimplifiedArtistObject>,
@@ -60,10 +60,10 @@ impl<'de> Deserialize<'de> for Track {
         where D: Deserializer<'de>
     {
 	/* Spotify API object */
-	#[derive(Debug, Deserialize)]
+	#[derive(Debug, Deserialize, Default)]
 	pub struct PlaylistTrackObject {
 	    // #[serde(with="ts_seconds")]
-	    added_at: String,
+	    added_at: Option<String>,
 	    added_by: OwnerObject,
 	    is_local: bool,
 	    pub track: Option<TrackObject>,
@@ -95,11 +95,11 @@ impl<'de> Deserialize<'de> for Track {
 	    is_local: bool
 	}
 
-	let helper = PlaylistTrackObject::deserialize(deserializer).expect("here's the error");
+	let helper = PlaylistTrackObject::deserialize(deserializer)?;
 	let track = helper.track.unwrap_or_default();
 
 	Ok(Track {
-	    added_at: helper.added_at,
+	    added_at: helper.added_at.unwrap_or_default(),
 	    added_by: helper.added_by,
 	    album: track.album,
 	    artists: track.artists,
@@ -137,7 +137,6 @@ impl Hash for Track {
         self.id.hash(state);
     }
 }
-
 
 // macro_rules! artist_concat {
 //     ($artists:expr, $var:ident) => {
