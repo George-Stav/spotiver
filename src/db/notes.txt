@@ -1,0 +1,28 @@
+PLAYLISTS
+- id (primary key)
+- name
+- url (external_urls/spotify)
+- image (images.first/url)
+- tracks (number of tracks)
+
+TRACKS
+- id
+- name
+- album
+- albumID
+- url (external_urls/spotify)
+- added_at
+- duration
+- disc_number
+
+[NOTES]:
+- track image, artist can be found in albums
+- album name kept for convenience
+
+ALBUMS
+- id
+- name
+- artist
+- total_tracks
+- url (external_urls/spotify)
+- image (images.first/url)

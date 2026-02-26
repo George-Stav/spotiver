@@ -24,7 +24,7 @@ use serde::{Serialize, Deserialize, Deserializer};
 #[derive(Default, Debug, Deserialize, Serialize, Clone)]
 pub struct TracksObject {
     href: String,
-    total: SjNumber
+    pub total: SjNumber
 }
 
 /* Spotify API object */

@@ -8,6 +8,12 @@ use std::fmt;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SjNumber(Number);
 
+impl SjNumber {
+    pub fn as_i64(&self) -> i64 {
+	self.0.as_i64().unwrap()
+    }
+}
+
 impl Default for SjNumber {
     fn default() -> Self {
 	SjNumber(Number::from(0))

@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
 pub struct ExternalURLsObject {
-    spotify: String
+    pub spotify: String
 }
 
 /* Spotify API Object */
