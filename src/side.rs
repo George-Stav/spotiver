@@ -5,6 +5,7 @@ fn main() {
     println!("{}", dt);
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum DT {
     Text,
