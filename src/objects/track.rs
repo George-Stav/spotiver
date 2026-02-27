@@ -41,7 +41,7 @@ pub struct Track {
     external_ids: ExternalIDsObject,
     external_urls: ExternalURLsObject,
     href: String,
-    id: String,
+    pub id: String,
     #[serde(default)]
     is_playable: bool,
     #[serde(default)]
@@ -96,7 +96,7 @@ impl<'de> Deserialize<'de> for Track {
 	}
 
 	let helper = PlaylistTrackObject::deserialize(deserializer)?;
-	let track = helper.track.unwrap_or_default();
+	let track = helper.track.unwrap();
 
 	Ok(Track {
 	    added_at: helper.added_at.unwrap_or_default(),

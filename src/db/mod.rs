@@ -21,27 +21,48 @@ pub fn create() {
     let bkp_path = Path::new("/home/george/BULK/spotiver.bkp");
     let mut db = Db::init(&bkp_path);
 
-    let pl_path = bkp_path.join("playlists.json");
-    let playlists: Vec<Playlist> = spotiver::vec_from_json(&pl_path).unwrap();
     let playlists_schema = vec![
 	Column::new("id", DT::Text, vec![Cons::Primary_Key]),
 	Column::new("name", DT::Text, vec![Cons::Not_Null]),
 	Column::new("url", DT::Text, vec![Cons::Not_Null]),
-	Column::new("image", DT::Text, vec![]),
+	Column::new("image", DT::Text, vec![]), // empty means nullable
 	Column::new("tracks", DT::Integer, vec![Cons::Not_Null]),
     ];
-    let t = Table::new(playlists_schema, DbTable::Playlists);
-    db.tables.insert(DbTable::Playlists, t);
+    let p = Table::new(playlists_schema, DbTable::Playlists);
+    db.tables.insert(DbTable::Playlists, p);
+
+    let tracks_schema = vec![
+	Column::new("id", DT::Text, vec![Cons::Primary_Key]),
+	Column::new("name", DT::Text, vec![Cons::Not_Null]),
+	Column::new("album", DT::Text, vec![Cons::Not_Null]),
+	Column::new("album_id", DT::Text, vec![Cons::Not_Null]),
+	Column::new("url", DT::Text, vec![Cons::Not_Null]),
+	Column::new("added_at", DT::Text, vec![]), // NOTE: Data Type???
+	Column::new("duration", DT::Integer, vec![Cons::Not_Null]),
+	Column::new("disc_number", DT::Integer, vec![Cons::Not_Null]),
+    ];
+    let t = Table::new(tracks_schema, DbTable::Tracks);
+    db.tables.insert(DbTable::Tracks, t);
+
     db.create();
+
+    let pl_path = bkp_path.join("playlists.json");
+    let playlists: Vec<Playlist> = spotiver::vec_from_json(&pl_path).unwrap();
     db.fill_playlists(&playlists);
 
-    // let mut hm: HashMap<String, usize> = HashMap::new();
-    // for p in playlists {
-    // 	hm.entry(p.id).and_modify(|v| *v+=1).or_insert(1);
-    // }
-    // println!("{:#?}", hm);
-
-    let _tracks: HashMap<&str, Track> = HashMap::new();
+    let mut tracks_map: HashMap<String, Track> = HashMap::new();
+    for p in &playlists {
+	let mut path = bkp_path.to_path_buf();
+	path.push(&p.id);
+	path.push("tracks.json");
+	if let Ok(tracks) = spotiver::vec_from_json::<Track>(&path) {
+	    for t in tracks {
+		println!("{:#?}", t);
+		let _ = tracks_map.insert(t.id.clone(), t);
+	    }
+	}
+    }
+    println!("{:?}", tracks_map);
 }
 
 pub struct Db {
@@ -132,11 +153,12 @@ impl Display for DT {
 }
 
 // TODO: Enforce constraint rules (e.g. primary-key and not-null are redundunt)
+// TODO: Foreign key
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 enum Cons {
     Primary_Key,
-    Foreign_Key,
+    // Foreign_Key,
     Unique,
     Not_Null,
     Null
@@ -146,7 +168,7 @@ impl Display for Cons {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 	let str = match self {
 	    Cons::Primary_Key => "Primary Key",
-	    Cons::Foreign_Key => "Foreign Key",
+	    // Cons::Foreign_Key => "Foreign Key",
 	    Cons::Not_Null => "Not Null",
 	    Cons::Null => "Null",
 	    Cons::Unique => "Unique",
