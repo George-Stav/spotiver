@@ -29,9 +29,9 @@ pub struct AlbumObject {
     available_markets: Vec<String>,
     external_urls: ExternalURLsObject,
     href: Option<String>,
-    id: Option<String>,
+    pub id: Option<String>,
     images: Vec<ImageObject>,
-    name: String,
+    pub name: String,
     release_date: Option<String>,
     release_date_precision: Option<String>,
     #[serde(default)]

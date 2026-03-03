@@ -8,7 +8,7 @@ use serde::{Serialize, Deserialize};
 pub struct SimplifiedArtistObject {
     external_urls: ExternalURLsObject,
     href: Option<String>,
-    id: Option<String>,
+    pub id: Option<String>,
     pub name: String,
     r#type: String,
     uri: Option<String>

@@ -32,14 +32,14 @@ pub struct TracksObject {
 pub struct Track {
     pub added_at: String,
     added_by: OwnerObject,
-    album: AlbumObject,
+    pub album: AlbumObject,
     pub artists: Vec<SimplifiedArtistObject>,
     available_markets: Vec<String>,
     disc_number: SjNumber,
-    duration_ms: SjNumber,
+    pub duration_ms: SjNumber,
     explicit: bool,
     external_ids: ExternalIDsObject,
-    external_urls: ExternalURLsObject,
+    pub external_urls: ExternalURLsObject,
     href: String,
     pub id: String,
     #[serde(default)]
@@ -49,10 +49,10 @@ pub struct Track {
     pub name: String,
     popularity: SjNumber, // https://developer.spotify.com/documentation/web-api/reference/get-playlists-tracks
     // pub preview_url: Option<String>,
-    track_number: SjNumber,
-    r#type: String,
+    pub track_number: SjNumber,
+    pub r#type: String,
     pub uri: String,
-    is_local: bool
+    pub is_local: bool
 }
 
 impl<'de> Deserialize<'de> for Track {
@@ -60,18 +60,11 @@ impl<'de> Deserialize<'de> for Track {
         where D: Deserializer<'de>
     {
 	/* Spotify API object */
-	#[derive(Debug, Deserialize, Default)]
-	pub struct PlaylistTrackObject {
-	    // #[serde(with="ts_seconds")]
+	#[derive(Default, Debug, Serialize, Deserialize)]
+	pub struct TrackObject {
 	    added_at: Option<String>,
 	    added_by: OwnerObject,
 	    is_local: bool,
-	    pub track: Option<TrackObject>,
-	}
-
-	/* Spotify API object */
-	#[derive(Default, Debug, Serialize, Deserialize)]
-	pub struct TrackObject {
 	    album: AlbumObject,
 	    pub artists: Vec<SimplifiedArtistObject>,
 	    available_markets: Vec<String>,
@@ -92,33 +85,31 @@ impl<'de> Deserialize<'de> for Track {
 	    track_number: SjNumber,
 	    r#type: String,
 	    pub uri: String,
-	    is_local: bool
 	}
 
-	let helper = PlaylistTrackObject::deserialize(deserializer)?;
-	let track = helper.track.unwrap();
+	let helper = TrackObject::deserialize(deserializer)?;
 
 	Ok(Track {
 	    added_at: helper.added_at.unwrap_or_default(),
 	    added_by: helper.added_by,
-	    album: track.album,
-	    artists: track.artists,
-	    available_markets: track.available_markets,
-	    disc_number: track.disc_number,
-	    duration_ms: track.duration_ms,
-	    explicit: track.explicit,
-	    external_ids: track.external_ids,
-	    external_urls: track.external_urls,
-	    href: track.href.unwrap_or_default(),
-	    id: track.id.unwrap_or_default(),
-	    is_playable: track.is_playable,
-	    restrictions: track.restrictions,
-	    name: track.name,
-	    popularity: track.popularity,
-	    track_number: track.track_number,
-	    r#type: track.r#type,
-	    uri: track.uri,
-	    is_local: track.is_local
+	    album: helper.album,
+	    artists: helper.artists,
+	    available_markets: helper.available_markets,
+	    disc_number: helper.disc_number,
+	    duration_ms: helper.duration_ms,
+	    explicit: helper.explicit,
+	    external_ids: helper.external_ids,
+	    external_urls: helper.external_urls,
+	    href: helper.href.unwrap_or_default(),
+	    id: helper.id.unwrap_or_default(),
+	    is_playable: helper.is_playable,
+	    restrictions: helper.restrictions,
+	    name: helper.name,
+	    popularity: helper.popularity,
+	    track_number: helper.track_number,
+	    r#type: helper.r#type,
+	    uri: helper.uri,
+	    is_local: helper.is_local
 	})
     }
 }
