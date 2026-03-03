@@ -31,13 +31,13 @@ pub fn save_as_json<T: Serialize>(items: &[T], location: &Path) -> Result<(), Bo
 pub fn vec_from_json<T: DeserializeOwned>(location: &Path) -> Result<Vec<T>, Box<dyn Error>> {
     let file_content = fs::read_to_string(&location)
         .map_err(|e| {
-            println!("Error: Couldn't read file [{:?}]: {}", location, e);
+            println!("Error:   Couldn't read file [{:?}]: {}", location, e);
             e
         })?;
 
     let list: Vec<T> = serde_json::from_str(&file_content)
         .map_err(|e| {
-            println!("Error: Couldn't deserialise object in file [{:?}]: {}", location, e);
+            println!("Error:   Couldn't deserialise object in file [{:?}]: {}", location, e);
             e
         }).unwrap();
 

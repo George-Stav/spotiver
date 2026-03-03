@@ -11,13 +11,19 @@ TRACKS
 - album
 - albumID
 - url (external_urls/spotify)
-- added_at
 - duration
-- disc_number
+- track_number
 
 [NOTES]:
 - track image, artist can be found in albums
 - album name kept for convenience
+
+TRACKS TO PLAYLISTS
+- track_id
+- track_name
+- playlist_id
+- playlist_name
+- added_at
 
 ALBUMS
 - id

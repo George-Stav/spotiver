@@ -1,19 +1,13 @@
-use std::fmt::Display;
+use std::{any::Any, fmt::Display};
+
+trait NewTrait: Any + Display {}
+impl NewTrait for String {}
+impl NewTrait for i64 {}
 
 fn main() {
-    let dt = DT::Text;
-    println!("{}", dt);
-}
-
-#[allow(dead_code)]
-#[derive(Debug)]
-enum DT {
-    Text,
-    Integer
-}
-
-impl Display for DT {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
+    let v: Vec<Box<dyn NewTrait>> = vec![
+	Box::new("one".to_string()),
+	Box::new(2)
+    ];
+    println!("{:?}", v.iter().map(|v| v.to_string()).collect::<Vec<String>>());
 }
