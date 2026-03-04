@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, path::{Path, PathBuf}};
+use std::{any::{type_name, type_name_of_val}, collections::HashMap, fmt::Display, path::{Path, PathBuf}};
 use sqlite::{self, Connection, State, Value};
 use crate::objects::{playlist::Playlist, track::Track};
 
@@ -6,13 +6,13 @@ macro_rules! handle {
     ($res:expr, $success:expr, $failure:expr) => {
 	match $res {
 	    Ok(_) => println!("Success: {}", $success),
-	    Err(e) => panic!("Error:   {e}\nQuery: {}", $failure),
+	    Err(e) => panic!("Error: {e}\nQuery: {}", $failure),
 	}
     };
     ($res:expr, $query:expr) => {
 	match $res {
 	    Ok(_) => println!("Success: {}", $query),
-	    Err(e) => panic!("Error:   {e}\nquery: {}", $query),
+	    Err(e) => panic!("Error: {e}\nquery: {}", $query),
 	}
     };
 }
@@ -57,27 +57,26 @@ pub fn create() {
     let m = Table::new(ttop_schema, DbTable::Ttop);
     db.tables.insert(DbTable::Ttop, m);
 
-
     db.create();
 
     let pl_path = bkp_path.join("playlists.json");
     let playlists: Vec<Playlist> = spotiver::vec_from_json(&pl_path).unwrap();
     db.fill_playlists(&playlists);
 
-    // let mut tracks_map: HashMap<String, Track> = HashMap::new();
-    // let mut ttop: Vec<Ttop> = Vec::new();
-    // for p in &playlists {
-    // 	let mut path = bkp_path.to_path_buf();
-    // 	path.push(&p.id);
-    // 	path.push("tracks.json");
-    // 	if let Ok(tracks) = spotiver::vec_from_json::<Track>(&path) {
-    // 	    for t in tracks {
-    // 		ttop.push((t.id.clone(), t.name.clone(), p.id.clone(), p.name.clone(), t.added_at.clone()));
-    // 		let _ = tracks_map.insert(t.id.clone(), t);
-    // 	    }
-    // 	}
-    // }
-    // db.fill_tracks(&tracks_map);
+    let mut tracks_map: HashMap<String, Track> = HashMap::new();
+    let mut ttop: Vec<Ttop> = Vec::new();
+    for p in &playlists {
+	let mut path = bkp_path.to_path_buf();
+	path.push(&p.id);
+	path.push("tracks.json");
+	if let Ok(tracks) = spotiver::vec_from_json::<Track>(&path) {
+	    for t in tracks {
+		ttop.push((t.id.clone(), t.name.clone(), p.id.clone(), p.name.clone(), t.added_at.clone()));
+		let _ = tracks_map.insert(t.id.clone(), t);
+	    }
+	}
+    }
+    db.fill_tracks(&tracks_map);
     // db.fill_ttop(&ttop);
 }
 
@@ -142,34 +141,64 @@ impl Db {
 	}
     }
 
+    fn insert_single_prepared(&self, dbt: DbTable, values: &[String]) {
+	if let Some(table) = self.tables.get(&dbt) {
+	    let query_truncated = format!(
+		"INSERT INTO {} {} VALUES ({} rows);",
+		table.dbt.to_string(), table.columns(), values.len()/table.schema.len()
+	    );
+	    let placeholders: Vec<String> = values.chunks(table.schema.len())
+		.map(|_| table.placeholders())
+		.collect();
+	    let query = format!(
+		"INSERT INTO {} {} VALUES {};",
+		table.dbt.to_string(), table.columns(), placeholders.join(", ")
+	    );
+	    let mut stmt = self.con.prepare(&query).unwrap();
+	    let values_indexed: Vec<(usize, sqlite::Value)> = values.iter()
+		.enumerate()
+		.map(|(i, v)| (i+1, v.clone().into()))
+		.collect();
+	    stmt.bind_iter::<_, (_, sqlite::Value)>(values_indexed);
+	    let res = stmt.next();
+	    // let res = self.con.execute(&query);
+	    handle!(res, query_truncated, query);
+	    stmt.reset();
+	}
+    }
+
     fn fill_playlists(&self, json_values: &[Playlist]) {
+	assert!(self.tables.get(&DbTable::Playlists).is_some());
 	if let Some(table) = self.tables.get(&DbTable::Playlists) {
-	    // playlist -> Iter<Item=&str>
 	    let values: Vec<String> = json_values.iter()
 		.map(|p| {
 		    let image = p.images.first().map_or("NULL", |img| img.url.as_str());
-
-		    table.bind_iter([
-			&p.id, &p.name, &p.external_urls.spotify, &image.to_string(), &p.tracks.total.to_string()
-		    ].map())
+		    // table.stringify(&[
+		    // 	&p.id, &p.name, &p.external_urls.spotify, &image.to_string(), &p.tracks.total.to_string()
+		    // ])
+		    [p.id.clone(), p.name.clone(), p.external_urls.spotify.clone(), image.to_string().clone(), p.tracks.total.to_string()]
 		})
+		.flatten()
 		.collect();
-	    self.insert(DbTable::Playlists, &values);
+	    self.insert_single_prepared(DbTable::Playlists, &values);
 	}
     }
 
     fn fill_tracks(&self, json_values: &HashMap<String, Track>) {
-	let values: Vec<String> = json_values.iter()
-	    .map(|(_, t)| {
-		let track_name = t.name.replace("\"", "'");
-		let album_id = t.album.id.clone().unwrap_or("".to_string());
-		let album_name = t.album.name.replace("\"", "'");
-		let track_number = t.track_number.as_i64();
-		format!(r#"("{}", "{}", "{}", "{}", "{}", {}, {})"#,
-			t.id, track_name, album_name, album_id, t.external_urls.spotify, t.duration_ms, track_number)
-	    })
-	    .collect();
-	self.insert(DbTable::Tracks, &values);
+	assert!(self.tables.get(&DbTable::Tracks).is_some());
+	if let Some(table) = self.tables.get(&DbTable::Tracks) {
+	    let values: Vec<String> = json_values.iter()
+		.map(|(_, t)| {
+		    // let track_name = t.name.replace("\"", "'");
+		    let album_id = t.album.id.clone().unwrap_or("".to_string());
+		    let duration = t.duration_ms.as_i64().to_string();
+		    let track_number = t.track_number.as_i64().to_string();
+		    [t.id.clone(), t.name.clone(), t.album.name.clone(), album_id, t.external_urls.spotify.clone(), duration, track_number]
+		})
+		.flatten()
+		.collect();
+	    self.insert_single_prepared(DbTable::Tracks, &values);
+	}
     }
 
     fn fill_ttop(&self, json_values: &[Ttop]) {
@@ -215,13 +244,13 @@ impl Table {
 	format!("({})", ph.join(", "))
     }
 
-    fn bind_iter<T, U>(&self, values: T) -> String
+    fn stringify<T, U>(&self, values: T) -> String
     where
 	T: IntoIterator<Item = U>,
 	U: Display
     {
 	let strings: Vec<String> = values.into_iter()
-	    .zip(self.schema.iter())
+	    .zip(&self.schema)
 	    .map(|(v, col)| col.datatype.to_value(v))
 	    .collect();
 	format!("({})", strings.join(", "))
@@ -245,7 +274,12 @@ impl Display for DT {
 impl DT {
     fn to_value<T: Display>(&self, value: T) -> String {
 	match self {
-	    DT::Text => format!("\"{}\"", value),
+	    DT::Text => {
+		let v = value.to_string()
+		    .replace(";", "\\;")
+		    .replace("\"", "\\\"");
+		format!("\"{}\"", v)
+	    }
 	    DT::Integer => value.to_string(),
 	    DT::Numeric => value.to_string(),
 	}
