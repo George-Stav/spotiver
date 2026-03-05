@@ -10,7 +10,7 @@ mod owner;
 mod restriction;
 mod artist;
 mod album;
-mod sj_number;
+pub mod sj_number;
 
 use crate::objects::{
     playlist::{CreatePlaylist, Playlist},
